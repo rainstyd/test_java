@@ -2,9 +2,11 @@ package flink.datastream;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.util.Collector;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -15,6 +17,7 @@ import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import flink.utils.GetConfigFromFile;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 
 public class GetKafkaToKafka {
@@ -40,37 +43,18 @@ public class GetKafkaToKafka {
 
         DataStream<String> stringStream = sourceStream.map(new MapFunction<String, String>() {
             @Override // 解析kafka日志内容
-            public String map(String value) throws Exception {
+            public String map(String value) {
                 try {
                     JSONArray jsonArray = new JSONArray();
                     String[] parts = value.split("----------");
+
                     for (String part : parts) {
-                        String[] keyValuePairs = part.split("\n");
-                        JSONObject jsonObject = new JSONObject();
-
-                        String firstElement = keyValuePairs[0];
-                        String logType = firstElement.substring(0, 2);
-                        String uniqueStr = firstElement.split(">")[1].split("\\[")[0];
-                        jsonObject.put("logType".toLowerCase(), logType);
-                        jsonObject.put("uniqueStr".toLowerCase(), uniqueStr);
-
-                        for (String keyValue : keyValuePairs) {
-                            String[] keyValueSplit = keyValue.split("=");
-                            if (keyValueSplit.length == 2) {
-                                String k = keyValueSplit[0].trim();
-                                String v = keyValueSplit[1].trim();
-                                jsonObject.put(k.toLowerCase(), v);
-                            }
-                        }
+                        JSONObject jsonObject = getJsonObject(part);
                         jsonArray.put(jsonObject);
                     }
-                    // 获取当前时间
+
                     LocalDateTime currentTime = LocalDateTime.now();
-
-                    // 定义时间格式
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-                    // 格式化并打印当前时间
                     String formattedTime = currentTime.format(formatter);
                     System.out.println(formattedTime);
                     // System.out.println(jsonArray.toString()); // 测试打印
@@ -81,45 +65,57 @@ public class GetKafkaToKafka {
                     return null;
                 }
             }
+
+        // DataStream<String> stringStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
+        //     @Override // 解析kafka日志内容
+        //     public void flatMap(String value, Collector<String> out) {
+        //         try {
+        //             JSONArray jsonArray = new JSONArray();
+        //             String[] parts = value.split("----------");
+        //
+        //             for (String part : parts) {
+        //                 JSONObject jsonObject = getJsonObject(part);
+        //                 jsonArray.put(jsonObject);
+        //             }
+        //
+        //             LocalDateTime currentTime = LocalDateTime.now();
+        //             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        //             String formattedTime = currentTime.format(formatter);
+        //             System.out.println(formattedTime);
+        //             // System.out.println(jsonArray.toString()); // 测试打印
+        //
+        //             out.collect(jsonArray.toString());
+        //         } catch (Exception e) {
+        //             System.err.println("Error parsing value: " + value + ", cause: " + e.getMessage());
+        //             out.collect(null);
+        //         }
+        //     }
+
+            private JSONObject getJsonObject(String part) {
+                String[] keyValuePairs = part.split("\n");
+                JSONObject jsonObject = new JSONObject();
+
+                String firstElement = keyValuePairs[0];
+                String logType = firstElement.substring(0, 2);
+                String uniqueStr = firstElement.split(">")[1].split("\\[")[0];
+                jsonObject.put("logType".toLowerCase(), logType);
+                jsonObject.put("uniqueStr".toLowerCase(), uniqueStr);
+
+                for (String keyValue : keyValuePairs) {
+                    String[] keyValueSplit = keyValue.split("=");
+                    if (keyValueSplit.length == 2) {
+                        String k = keyValueSplit[0].trim();
+                        String v = keyValueSplit[1].trim();
+                        jsonObject.put(k.toLowerCase(), v);
+                    }
+                }
+                return jsonObject;
+            }
+
         });
 
-       // DataStream<String> stringStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
-       //     @Override // 解析kafka日志内容
-       //     public void flatMap(String value, Collector<String> out) {
-       //         try {
-       //             JSONArray jsonArray = new JSONArray();
-       //             String[] parts = value.split("----------");
-       //             for (String part : parts) {
-       //                 String[] keyValuePairs = part.split("\n");
-       //                 JSONObject jsonObject = new JSONObject();
-       //
-       //                 String firstElement = keyValuePairs[0];
-       //                 String logType = firstElement.substring(0, 2);
-       //                 String uniqueStr = firstElement.split(">")[1].split("\\[")[0];
-       //                 jsonObject.put("logType".toLowerCase(), logType);
-       //                 jsonObject.put("uniqueStr".toLowerCase(), uniqueStr);
-       //
-       //                 for (String keyValue : keyValuePairs) {
-       //                     String[] keyValueSplit = keyValue.split("=");
-       //                     if (keyValueSplit.length == 2) {
-       //                         String k = keyValueSplit[0].trim();
-       //                         String v = keyValueSplit[1].trim();
-       //                         jsonObject.put(k.toLowerCase(), v);
-       //                     }
-       //                 }
-       //                 jsonArray.put(jsonObject);
-       //             }
-       //             System.out.println(jsonArray.toString()); // 测试打印
-       //             out.collect(jsonArray.toString());
-       //         } catch (Exception e) {
-       //             System.err.println("Error parsing value: " + value + ", cause: " + e.getMessage());
-       //             out.collect(null);
-       //         }
-       //     }
-       // });
-
         // 过滤掉 null 值（如果选择了返回 null 作为舍弃数据的标志）
-        stringStream = stringStream.filter(value -> value != null);
+        stringStream = stringStream.filter(Objects::nonNull);
 
         KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
                 .setBootstrapServers(properties.getProperty("bootstrap.servers"))
@@ -128,7 +124,7 @@ public class GetKafkaToKafka {
                         .setValueSerializationSchema(new SimpleStringSchema())
                         .build()
                 )
-                .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+                // .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .build();
 
 
