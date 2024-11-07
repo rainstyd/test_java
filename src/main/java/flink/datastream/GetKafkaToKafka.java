@@ -48,7 +48,7 @@ public class GetKafkaToKafka {
                         String[] keyValuePairs = part.split("\n");
                         JSONObject jsonObject = new JSONObject();
 
-                        String firstElement = keyValuePairs[0]; // 取第一行解析请求/应答和唯一串
+                        String firstElement = keyValuePairs[0];
                         String logType = firstElement.substring(0, 2);
                         String uniqueStr = firstElement.split(">")[1].split("\\[")[0];
                         jsonObject.put("logType".toLowerCase(), logType);
@@ -93,7 +93,7 @@ public class GetKafkaToKafka {
        //                 String[] keyValuePairs = part.split("\n");
        //                 JSONObject jsonObject = new JSONObject();
        //
-       //                 String firstElement = keyValuePairs[0]; // 取第一行解析请求/应答和唯一串
+       //                 String firstElement = keyValuePairs[0];
        //                 String logType = firstElement.substring(0, 2);
        //                 String uniqueStr = firstElement.split(">")[1].split("\\[")[0];
        //                 jsonObject.put("logType".toLowerCase(), logType);
