@@ -134,6 +134,6 @@ public class GetKafkaToKafka {
 
         stringStream.sinkTo(kafkaSink);
 
-        env.execute("zhongxin.flink.datastream.GetKafkaToKafka");
+        env.execute("flink.datastream.GetKafkaToKafka");
     }
 }
