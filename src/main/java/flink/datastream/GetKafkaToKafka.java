@@ -30,7 +30,6 @@ public class GetKafkaToKafka {
         GetConfigFromFile properties = new GetConfigFromFile(args);
         System.out.println(properties.getProperty("bootstrap.servers", "ERROR: 读取配置文件异常！"));
 
-        // 消费者
         KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
                 .setBootstrapServers(properties.getProperty("bootstrap.servers"))
                 .setTopics(properties.getProperty("topic.name.src"))
@@ -42,8 +41,8 @@ public class GetKafkaToKafka {
         DataStream<String> sourceStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "KafkaSource");
 
         DataStream<String> stringStream = sourceStream.map(new MapFunction<String, String>() {
-            @Override // 解析kafka日志内容
-            public String map(String value) {
+            @Override
+            public String map(String value) { // 解析kafka日志内容
                 try {
                     JSONArray jsonArray = new JSONArray();
                     String[] parts = value.split("----------");
@@ -53,10 +52,7 @@ public class GetKafkaToKafka {
                         jsonArray.put(jsonObject);
                     }
 
-                    LocalDateTime currentTime = LocalDateTime.now();
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                    String formattedTime = currentTime.format(formatter);
-                    System.out.println(formattedTime);
+                    System.out.println(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
                     // System.out.println(jsonArray.toString()); // 测试打印
 
                     return jsonArray.toString();
@@ -67,8 +63,8 @@ public class GetKafkaToKafka {
             }
 
         // DataStream<String> stringStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
-        //     @Override // 解析kafka日志内容
-        //     public void flatMap(String value, Collector<String> out) {
+        //     @Override
+        //     public void flatMap(String value, Collector<String> out) { // 解析kafka日志内容
         //         try {
         //             JSONArray jsonArray = new JSONArray();
         //             String[] parts = value.split("----------");
@@ -78,10 +74,7 @@ public class GetKafkaToKafka {
         //                 jsonArray.put(jsonObject);
         //             }
         //
-        //             LocalDateTime currentTime = LocalDateTime.now();
-        //             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        //             String formattedTime = currentTime.format(formatter);
-        //             System.out.println(formattedTime);
+        //             System.out.println(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         //             // System.out.println(jsonArray.toString()); // 测试打印
         //
         //             out.collect(jsonArray.toString());
@@ -114,7 +107,6 @@ public class GetKafkaToKafka {
 
         });
 
-        // 过滤掉 null 值（如果选择了返回 null 作为舍弃数据的标志）
         stringStream = stringStream.filter(Objects::nonNull);
 
         KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
