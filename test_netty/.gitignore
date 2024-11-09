@@ -36,9 +36,3 @@ build/
 
 ### Mac OS ###
 .DS_Store
-
-# User
-*.idea
-*target
-*logs
-*zj_test
