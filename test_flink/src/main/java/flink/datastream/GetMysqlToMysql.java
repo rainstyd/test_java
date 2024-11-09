@@ -25,7 +25,7 @@ import java.time.format.DateTimeFormatter;
 public class GetMysqlToMysql {
     public static void main(String[] args) throws Exception {
 
-        // bin/flink run -c flink.datastream.GetMysqlToMysql rainsty/test_java-1.0-SNAPSHOT.jar --config=rainsty/test_java.properties
+        // bin/flink run -c flink.datastream.GetMysqlToMysql rainsty/test_flink-1.0-SNAPSHOT.jar --config=rainsty/test_flink.properties
         /*
         CREATE TABLE `test` (
           `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',

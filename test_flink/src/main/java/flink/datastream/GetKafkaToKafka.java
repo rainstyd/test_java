@@ -23,7 +23,7 @@ import java.util.Objects;
 public class GetKafkaToKafka {
     public static void main(String[] args) throws Exception {
 
-        // bin/flink run -c flink.datastream.GetKafkaToKafka rainsty/test_java-1.0-SNAPSHOT.jar --config=rainsty/test_java.properties
+        // bin/flink run -c flink.datastream.GetKafkaToKafka rainsty/test_flink-1.0-SNAPSHOT.jar --config=rainsty/test_flink.properties
         /* kafka source data (start line do not have Space)
             正常:<13:12:32.303>45673BD6BC4[1]
             a=1
