@@ -15,7 +15,6 @@ import java.util.*;
 
 
 public class DorisHttpConnect {
-    private final List<String> dorisNodes;
     private final GetConfigFromFile properties;
     private final Properties newProperties;
     private final String urlPath;
@@ -31,10 +30,10 @@ public class DorisHttpConnect {
             doris.redirect=false
             doris.redirect.address=192.168.0.45:18040->0.0.0.0:18040,192.168.0.46:18040->0.0.0.0:18040
          */
-        this.dorisNodes = new ArrayList<>(Arrays.asList(properties.getProperty("doris.http.urls").split(",")));
-        this.actionUrl = null;
+        List<String> dorisNodes = new ArrayList<>(Arrays.asList(properties.getProperty("doris.http.urls").split(",")));
         this.newDorisNodes = new ArrayList<>(Arrays.asList(properties.getProperty("doris.http.urls").split(",")));
         this.newDorisNodes.add(0, dorisNodes.get(0));
+        this.actionUrl = null;
         this.properties = properties;
         this.newProperties = new Properties();
         this.urlPath = "/api/" + properties.getProperty("doris.database") + "/" + tableName + "/_stream_load";
@@ -77,9 +76,6 @@ public class DorisHttpConnect {
         String responseBody = "";
 
         if (actionUrl != null) { newDorisNodes.set(0, actionUrl); };
-
-        // System.out.println(dorisNodes);
-        // System.out.println(newDorisNodes);
 
         for (String url : newDorisNodes) {
             String newUrlInit = url + urlPath;
