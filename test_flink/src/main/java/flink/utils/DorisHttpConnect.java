@@ -8,7 +8,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.*;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +19,8 @@ public class DorisHttpConnect {
     private final GetConfigFromFile properties;
     private final Properties newProperties;
     private final String urlPath;
+    private final ArrayList<String> newDorisNodes;
+    private String actionUrl;
 
     public DorisHttpConnect(GetConfigFromFile properties, String tableName) {
         /* Doris http 请求相关配置内容
@@ -31,6 +32,9 @@ public class DorisHttpConnect {
             doris.redirect.address=192.168.0.45:18040->0.0.0.0:18040,192.168.0.46:18040->0.0.0.0:18040
          */
         this.dorisNodes = new ArrayList<>(Arrays.asList(properties.getProperty("doris.http.urls").split(",")));
+        this.actionUrl = null;
+        this.newDorisNodes = new ArrayList<>(Arrays.asList(properties.getProperty("doris.http.urls").split(",")));
+        this.newDorisNodes.add(0, dorisNodes.get(0));
         this.properties = properties;
         this.newProperties = new Properties();
         this.urlPath = "/api/" + properties.getProperty("doris.database") + "/" + tableName + "/_stream_load";
@@ -72,11 +76,16 @@ public class DorisHttpConnect {
     public JSONObject sendHttpPut(String jsonData) throws IOException {
         String responseBody = "";
 
-        for (String url : dorisNodes) {
-            url = url + urlPath;
+        if (actionUrl != null) { newDorisNodes.set(0, actionUrl); };
+
+        // System.out.println(dorisNodes);
+        // System.out.println(newDorisNodes);
+
+        for (String url : newDorisNodes) {
+            String newUrlInit = url + urlPath;
 
             try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
-                HttpPut httpPutObj = new HttpPut(url);
+                HttpPut httpPutObj = new HttpPut(newUrlInit);
                 HttpPut httpPut = SetHttpRequestHeaders(httpPutObj, jsonData);
 
                 try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
@@ -98,10 +107,10 @@ public class DorisHttpConnect {
                         responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
                     }
                 }
+                actionUrl = url;
                 return new JSONObject(responseBody);
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new IOException("Failed to send http put: " + e.getMessage());
             }
         }
         return null;
