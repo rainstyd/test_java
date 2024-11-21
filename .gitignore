@@ -41,4 +41,4 @@ build/
 *.idea
 *target
 *logs
-*zj_test
+*zj_test*

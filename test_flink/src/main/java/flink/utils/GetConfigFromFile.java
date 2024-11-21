@@ -20,7 +20,7 @@ public class GetConfigFromFile implements Serializable {
         }
 
         if (configFilePath == null || configFilePath.isEmpty()) {
-            configFilePath = "test_java.properties";
+            configFilePath = "test_flink.properties";
             System.out.println(configFilePath);
         }
 
