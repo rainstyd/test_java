@@ -1,9 +1,11 @@
 package flink.datastream;
 
-import flink.utils.DorisHttpConnect;
+import flink.utils.DorisHttpSink;
 import flink.utils.GetConfigFromFile;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -12,13 +14,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
-import flink.utils.DorisHttpSink;
 import org.json.JSONObject;
-
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 
 public class GetKafkaToDoris {
@@ -43,7 +43,7 @@ public class GetKafkaToDoris {
         */
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        // env.setParallelism(1);
+        // env.setParallelism(6);
         env.enableCheckpointing(60000);
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
@@ -53,6 +53,8 @@ public class GetKafkaToDoris {
 
         GetConfigFromFile properties = new GetConfigFromFile(args);
         System.out.println(properties.getProperty("doris.http.urls", "ERROR: 读取配置文件异常！"));
+
+        Random random = new Random();
 
         // String jsonData = "{\"data\": [{ \"uniqueid\": \"test_device_62133_5\", \"provider\": \"aaaaa_5\" }]}";
         // DorisHttpConnect client = new DorisHttpConnect(properties, "app");
@@ -74,9 +76,9 @@ public class GetKafkaToDoris {
 
         DataStream<String> sourceStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "KafkaSource");
 
-        DataStream<String> dataStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
+        DataStream<Tuple2<Integer, String>> dataStream = sourceStream.flatMap(new FlatMapFunction<String, Tuple2<Integer, String>>() {
             @Override
-            public void flatMap(String value, Collector<String> out) { // 解析kafka日志内容
+            public void flatMap(String value, Collector<Tuple2<Integer, String>> out) { // 解析kafka日志内容
                 try {
                     String[] parts = value.split("----------");
 
@@ -94,7 +96,7 @@ public class GetKafkaToDoris {
                                     JSONObject jsonObject = new JSONObject(); // 模拟测试数据
                                     jsonObject.put("uniqueid", UUID.randomUUID().toString());
                                     jsonObject.put("provider", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                                    out.collect(jsonObject.toString());
+                                    out.collect(new Tuple2<>(random.nextInt(2), jsonObject.toString()));
                                 }
                             }
                         }
@@ -105,7 +107,34 @@ public class GetKafkaToDoris {
             }
         });
 
-        dataStream.addSink(new DorisHttpSink(properties, "app", 10000, 10000));
+        // dataStream.keyBy(value -> value.f0).addSink(new DorisHttpSink(properties, "app", 10000, 10000));
+
+        DataStream<String> resultStream0 = dataStream.filter(new FilterFunction<Tuple2<Integer, String>>() {
+            @Override
+            public boolean filter(Tuple2<Integer, String> value) throws Exception {
+                return value.f0 == 0;
+            }
+        }).map(new MapFunction<Tuple2<Integer, String>, String>() {
+            @Override
+            public String map(Tuple2<Integer, String> value) throws Exception {
+                return value.f1;
+            }
+        });
+
+        DataStream<String> resultStream1 = dataStream.filter(new FilterFunction<Tuple2<Integer, String>>() {
+            @Override
+            public boolean filter(Tuple2<Integer, String> value) throws Exception {
+                return value.f0 == 1;
+            }
+        }).map(new MapFunction<Tuple2<Integer, String>, String>() {
+            @Override
+            public String map(Tuple2<Integer, String> value) throws Exception {
+                return value.f1;
+            }
+        });
+
+        resultStream0.addSink(new DorisHttpSink(properties, "app", 10000, 10000)).name("resultStream0");
+        resultStream1.addSink(new DorisHttpSink(properties, "app", 10000, 10000)).name("resultStream1");
 
         env.execute("flink.datastream.GetKafkaToDoris");
     }
