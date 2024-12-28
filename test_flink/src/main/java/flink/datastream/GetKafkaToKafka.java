@@ -34,6 +34,7 @@ public class GetKafkaToKafka {
         */
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(6);
 
         GetConfigFromFile properties = new GetConfigFromFile(args);
         System.out.println(properties.getProperty("bootstrap.servers", "ERROR: 读取配置文件异常！"));
@@ -48,31 +49,9 @@ public class GetKafkaToKafka {
 
         DataStream<String> sourceStream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "KafkaSource");
 
-        DataStream<String> stringStream = sourceStream.map(new MapFunction<String, String>() {
-            @Override
-            public String map(String value) { // 解析kafka日志内容
-                try {
-                    JSONArray jsonArray = new JSONArray();
-                    String[] parts = value.split("----------");
-
-                    for (String part : parts) {
-                        JSONObject jsonObject = getJsonObject(part);
-                        jsonArray.put(jsonObject);
-                    }
-
-                    System.out.println(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                    // System.out.println(jsonArray.toString()); // 测试打印
-
-                    return jsonArray.toString();
-                } catch (Exception e) {
-                    System.err.println("Error parsing value: " + value + ", cause: " + e.getMessage());
-                    return null;
-                }
-            }
-
-        // DataStream<String> stringStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
+        // DataStream<String> stringStream = sourceStream.map(new MapFunction<String, String>() {
         //     @Override
-        //     public void flatMap(String value, Collector<String> out) { // 解析kafka日志内容
+        //     public String map(String value) { // 解析kafka日志内容
         //         try {
         //             JSONArray jsonArray = new JSONArray();
         //             String[] parts = value.split("----------");
@@ -85,12 +64,34 @@ public class GetKafkaToKafka {
         //             System.out.println(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         //             // System.out.println(jsonArray.toString()); // 测试打印
         //
-        //             out.collect(jsonArray.toString());
+        //             return jsonArray.toString();
         //         } catch (Exception e) {
         //             System.err.println("Error parsing value: " + value + ", cause: " + e.getMessage());
-        //             out.collect(null);
+        //             return null;
         //         }
         //     }
+
+        DataStream<String> stringStream = sourceStream.flatMap(new FlatMapFunction<String, String>() {
+            @Override
+            public void flatMap(String value, Collector<String> out) { // 解析kafka日志内容
+                try {
+                    JSONArray jsonArray = new JSONArray();
+                    String[] parts = value.split("----------");
+
+                    for (String part : parts) {
+                        JSONObject jsonObject = getJsonObject(part);
+                        jsonArray.put(jsonObject);
+                    }
+
+                    System.out.println(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    // System.out.println(jsonArray.toString()); // 测试打印
+
+                    out.collect(jsonArray.toString());
+                } catch (Exception e) {
+                    System.err.println("Error parsing value: " + value + ", cause: " + e.getMessage());
+                    out.collect(null);
+                }
+            }
 
             private JSONObject getJsonObject(String part) {
                 String[] keyValuePairs = part.split("\n");
@@ -128,7 +129,7 @@ public class GetKafkaToKafka {
                 .build();
 
 
-        stringStream.sinkTo(kafkaSink);
+        stringStream.sinkTo(kafkaSink).setParallelism(2);
 
         env.execute("flink.datastream.GetKafkaToKafka");
     }
