@@ -189,9 +189,7 @@ public class HostSearchJob {
                 )
                 .build();
 
-
         // stringStream.print();
-        // stringStream.sinkTo(kafkaSink).setParallelism(2);
         stringStream.sinkTo(kafkaSink).setParallelism(properties.getIntegerProperty("HostSearchJob.sink_parallelism", "1"));
 
         env.execute("flink.datastream.GetKafkaToKafka");
