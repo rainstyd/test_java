@@ -43,4 +43,8 @@ public class GetConfigFromFile implements Serializable {
         return properties.getProperty(key);
     }
 
+    public Integer getIntegerProperty(String key, String defaultValue) { return Integer.parseInt(properties.getProperty(key, defaultValue)); }
+
+    public Integer getIntegerProperty(String key) { return Integer.parseInt(properties.getProperty(key)); }
+
 }
